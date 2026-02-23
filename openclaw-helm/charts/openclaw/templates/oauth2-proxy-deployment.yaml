@@ -1,0 +1,78 @@
+{{- if .Values.gatewayOauth2Nginx.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "openclaw.fullname" . }}-oauth2-proxy
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: oauth2-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "openclaw.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        {{- include "openclaw.labels" . | nindent 8 }}
+        app.kubernetes.io/component: oauth2-proxy
+    spec:
+      containers:
+        - name: oauth2-proxy
+          image: "{{ .Values.gatewayOauth2Nginx.oauth2Proxy.image.repository }}:{{ .Values.gatewayOauth2Nginx.oauth2Proxy.image.tag }}"
+          imagePullPolicy: {{ .Values.gatewayOauth2Nginx.oauth2Proxy.image.pullPolicy }}
+          args:
+            - --http-address=0.0.0.0:4180
+            - --upstream=file:///dev/null
+            - --provider={{ .Values.gatewayOauth2Nginx.oauth2Proxy.provider }}
+            - --redirect-url={{ .Values.gatewayOauth2Nginx.oauth2Proxy.redirectUrl }}
+            {{- if .Values.gatewayOauth2Nginx.oauth2Proxy.oidcIssuerUrl }}
+            - --oidc-issuer-url={{ .Values.gatewayOauth2Nginx.oauth2Proxy.oidcIssuerUrl }}
+            {{- end }}
+            - --client-id={{ .Values.gatewayOauth2Nginx.oauth2Proxy.clientId }}
+            - --cookie-expire={{ .Values.gatewayOauth2Nginx.oauth2Proxy.cookieExpire | default "168h" }}
+            {{- if and ( .Values.gatewayOauth2Nginx.oauth2Proxy.cookieRefresh ) ( ne (toString .Values.gatewayOauth2Nginx.oauth2Proxy.cookieRefresh) "0" ) }}
+            - --cookie-refresh={{ .Values.gatewayOauth2Nginx.oauth2Proxy.cookieRefresh }}
+            {{- end }}
+            {{- /* oauth2-proxy v7 removed --allowed-email; use --email-domain or --authenticated-emails-file */}}
+            {{- range .Values.gatewayOauth2Nginx.oauth2Proxy.emailDomains }}
+            - --email-domain={{ . }}
+            {{- end }}
+            {{- range .Values.gatewayOauth2Nginx.oauth2Proxy.allowedGroups }}
+            - --allowed-group={{ . }}
+            {{- end }}
+            {{- if .Values.gatewayOauth2Nginx.oauth2Proxy.skipProviderButton }}
+            - --skip-provider-button
+            {{- end }}
+          env:
+            {{- if .Values.gatewayOauth2Nginx.oauth2Proxy.existingSecret }}
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.gatewayOauth2Nginx.oauth2Proxy.existingSecret }}
+                  key: client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.gatewayOauth2Nginx.oauth2Proxy.existingSecret }}
+                  key: cookie-secret
+            {{- else }}
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              value: {{ .Values.gatewayOauth2Nginx.oauth2Proxy.clientSecret }}
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              value: {{ .Values.gatewayOauth2Nginx.oauth2Proxy.cookieSecret }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 4180
+              protocol: TCP
+          {{- with .Values.gatewayOauth2Nginx.oauth2Proxy.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

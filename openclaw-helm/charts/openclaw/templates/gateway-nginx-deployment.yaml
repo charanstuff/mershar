@@ -1,0 +1,63 @@
+{{- if .Values.gatewayOauth2Nginx.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "openclaw.fullname" . }}-gateway-nginx
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway-nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "openclaw.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: gateway-nginx
+  template:
+    metadata:
+      labels:
+        {{- include "openclaw.labels" . | nindent 8 }}
+        app.kubernetes.io/component: gateway-nginx
+    spec:
+      containers:
+        - name: nginx
+          image: "{{ .Values.gatewayOauth2Nginx.nginx.image.repository }}:{{ .Values.gatewayOauth2Nginx.nginx.image.tag }}"
+          imagePullPolicy: {{ .Values.gatewayOauth2Nginx.nginx.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 4181
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "4181"
+            - name: OPENCLAW_GATEWAY_UPSTREAM
+              value: "{{ include "openclaw.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}"
+            - name: OAUTH2_PROXY_UPSTREAM
+              value: "{{ include "openclaw.fullname" . }}-oauth2-proxy.{{ .Release.Namespace }}.svc.cluster.local:4180"
+            - name: RESOLVER
+              value: {{ .Values.gatewayOauth2Nginx.resolver | quote }}
+            - name: OPENCLAW_GATEWAY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "openclaw.secretName" . }}
+                  key: OPENCLAW_GATEWAY_TOKEN
+          {{- with .Values.gatewayOauth2Nginx.nginx.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

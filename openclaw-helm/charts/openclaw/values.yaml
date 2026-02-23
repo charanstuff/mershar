@@ -1,0 +1,326 @@
+# OpenClaw Helm Chart Values
+# https://docs.openclaw.ai/
+
+# -- Override the name of the chart
+nameOverride: ""
+# -- Override the full name of the release
+fullnameOverride: ""
+
+# Image configuration
+image:
+  # -- Container image repository
+  repository: ghcr.io/openclaw/openclaw
+  # -- Container image tag
+  tag: "2026.2.17"
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+
+# -- Image pull secrets for private registries
+imagePullSecrets: []
+
+# Init container (config copy/merge). Runs as non-root; fsGroup on the volume ensures correct ownership.
+initContainer:
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: false
+    seccompProfile:
+      type: RuntimeDefault
+
+# OpenClaw application settings
+openclaw:
+  # -- Bind mode: "localhost" for local-only, "lan" for network access (needed for port-forward/ingress/other pods)
+  bind: "lan"
+  # -- Timezone environment variable
+  timezone: "UTC"
+  # -- Config file mode: "merge" keeps existing config and merges helm values (helm wins conflicts),
+  # "overwrite" replaces config entirely
+  configMode: "merge"
+  # -- Skills to install from ClawHub
+  skills: []
+
+  # Agent configuration (maps to agents.defaults in openclaw.json)
+  agents:
+    defaults:
+      # -- Primary model in provider/model format
+      model: "anthropic/claude-sonnet-4-20250514"
+      # -- Timeout in seconds for agent operations
+      timeoutSeconds: 600
+      # -- Thinking mode: "low", "high", or "off"
+      thinkingDefault: "low"
+
+  # -- Raw JSON overrides merged into openclaw.json
+  # Use this for advanced configuration not covered by other options
+  # Example:
+  #   configOverrides:
+  #     channels:
+  #       telegram:
+  #         enabled: true
+  configOverrides: {}
+
+# Credentials for LLM providers
+credentials:
+  # -- Anthropic API key (required if using Anthropic models)
+  anthropicApiKey: ""
+  # -- OpenAI API key (optional, for OpenAI models)
+  openaiApiKey: ""
+  # -- OpenAI organization ID (optional; required for some keys, e.g. multi-org)
+  openaiOrgId: ""
+  # -- OpenAI project ID (optional; required for sk-proj- project keys, e.g. Default project)
+  openaiProjectId: ""
+  # -- Gateway authentication token (auto-generated if empty)
+  gatewayToken: ""
+  # -- Use an existing secret instead of creating one
+  # The secret must contain keys: ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENCLAW_GATEWAY_TOKEN
+  existingSecret: ""
+
+# Chromium sidecar for browser automation
+chromium:
+  # -- Enable Chromium sidecar container
+  enabled: true
+  # -- When true, use a Chromium image with VNC/noVNC so you can watch the browser. Uses chromium.vncImage and exposes port 8080 (noVNC). OpenClaw still connects via CDP on 9222.
+  visibleMode: false
+  # -- VNC password for noVNC when visibleMode is true (noVNC web UI at https://localhost:8080 after port-forward).
+  vncPassword: "openclaw-vnc"
+  # -- Image used when visibleMode is true (must expose CDP on 9222 and noVNC on 8080; e.g. suyash5053/chromium-vnc-cdp).
+  vncImage:
+    repository: suyash5053/chromium-vnc-cdp
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  # -- Remote debugging bind address. Use 127.0.0.1 so only the OpenClaw container in the pod can connect.
+  remoteDebuggingAddress: "127.0.0.1"
+  # -- Disable Chromium sandbox (--no-sandbox). Required in many container environments; set to false only if your runtime supports it.
+  noSandbox: true
+  image:
+    # -- Chromium container image repository (used when visibleMode is false)
+    repository: zenika/alpine-chrome
+    # -- Chromium container image tag
+    tag: "124"
+    # -- Chromium image pull policy
+    pullPolicy: IfNotPresent
+  # -- Resource requests and limits for Chromium container
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  # -- Security context for Chromium container
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
+
+# Persistence configuration
+persistence:
+  # -- Enable persistent storage for OpenClaw data
+  enabled: true
+  # -- Storage size
+  size: 5Gi
+  # -- Storage class (leave empty for default)
+  storageClass: ""
+  # -- Access mode
+  accessMode: ReadWriteOnce
+  # -- Annotations for the PVC
+  annotations: {}
+  # -- Use an existing PVC instead of creating one
+  existingClaim: ""
+
+# Service configuration
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- Gateway port (WebSocket control plane)
+  port: 18789
+  # -- Canvas port (HTTP server)
+  canvasPort: 18793
+  # -- Annotations for the service
+  annotations: {}
+
+# Optional: oauth2-proxy (public image) + nginx (build from gateway-nginx/) for OAuth in front + Bearer token.
+# Build nginx image: docker build -t <your-registry>/openclaw-gateway-nginx:latest ./gateway-nginx
+gatewayOauth2Nginx:
+  # -- Enable oauth2-proxy + nginx; Ingress will route to nginx (auth + token injection)
+  enabled: false
+  # -- CIDRs for gateway.trustedProxies when enabled (so gateway treats clients behind nginx as allowed). Set to the CIDR where gateway-nginx pods run (e.g. your cluster pod network). Kind default is often 10.244.0.0/16; check with: kubectl get nodes -o jsonpath='{.items[0].spec.podCIDR}' or your CNI docs.
+  trustedProxiesCidrs: ["10.244.0.0/16"]
+  # -- Nginx image (auth_request to oauth2-proxy, injects Bearer token to OpenClaw)
+  nginx:
+    image:
+      repository: openclaw-gateway-nginx
+      tag: latest
+      pullPolicy: IfNotPresent
+    resources: {}
+  # -- K8s cluster DNS IP for nginx resolver (cluster-specific; e.g. 10.96.0.10)
+  resolver: "10.96.0.10"
+  # -- oauth2-proxy (quay.io/oauth2-proxy/oauth2-proxy)
+  oauth2Proxy:
+    image:
+      repository: quay.io/oauth2-proxy/oauth2-proxy
+      tag: v7.5.0
+      pullPolicy: IfNotPresent
+    # -- OAuth2 client ID
+    clientId: ""
+    # -- OAuth2 client secret (or use existingSecret)
+    clientSecret: ""
+    # -- Cookie secret (generate: python3 -c "import os,base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode())")
+    cookieSecret: ""
+    # -- Secret with keys: client-secret, cookie-secret (overrides clientSecret/cookieSecret)
+    existingSecret: ""
+    # -- Redirect URL as registered with IdP (e.g. https://openclaw.example.com/oauth2/callback)
+    redirectUrl: ""
+    # -- Provider: google, oidc, github, etc.
+    provider: "oidc"
+    # -- For provider=oidc (e.g. https://accounts.google.com)
+    oidcIssuerUrl: ""
+    # -- Restrict who can log in. If all are empty, any user who can log in at the IdP is allowed.
+    # Allowed email addresses (oauth2-proxy --allowed-email). Example: ["alice@mycompany.com", "bob@mycompany.com"]
+    allowedEmails: []
+    # -- Allowed email domains (oauth2-proxy --email-domain). Only users with email @domain can log in. Example: ["mycompany.com"]
+    emailDomains: []
+    # -- Allowed groups (oauth2-proxy --allowed-group). IdP must support groups (e.g. Google Workspace, Azure AD). Example: ["openclaw-users"]
+    allowedGroups: []
+    # -- If true, skip oauth2-proxy's sign-in page and redirect straight to the IdP (Google/GitLab login). If false, user sees oauth2-proxy's "Sign in with [Provider]" button first.
+    skipProviderButton: false
+    resources: {}
+
+# Ingress configuration
+ingress:
+  # -- Enable ingress
+  enabled: false
+  # -- Ingress class name
+  className: ""
+  # -- Annotations for the ingress
+  # Example for WebSocket support with nginx:
+  # nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+  # nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  # nginx.org/websocket-services: "openclaw"
+  annotations: {}
+  # -- Ingress hosts configuration
+  hosts:
+    - host: openclaw.local
+      paths:
+        - path: /
+          pathType: Prefix
+          # -- Which service port to use (gateway or canvas)
+          servicePort: gateway
+  # -- TLS configuration
+  tls: []
+  #  - secretName: openclaw-tls
+  #    hosts:
+  #      - openclaw.local
+
+# Resource requests and limits for main OpenClaw container
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+# Security context for the pod
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# Security context for the main OpenClaw container
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+  seccompProfile:
+    type: RuntimeDefault
+
+# Service account configuration
+serviceAccount:
+  # -- Create a service account
+  create: true
+  # -- Service account name (auto-generated if empty)
+  name: ""
+  # -- Annotations for the service account
+  annotations: {}
+
+# -- Node selector for pod scheduling
+nodeSelector: {}
+
+# -- Tolerations for pod scheduling
+tolerations: []
+
+# -- Affinity rules for pod scheduling
+affinity: {}
+
+# -- Annotations for the pod
+podAnnotations: {}
+
+# -- Labels for the pod
+podLabels: {}
+
+# -- Revision history limit for Deployment (number of old ReplicaSets to keep)
+revisionHistoryLimit: 5
+
+# Probes configuration
+probes:
+  # Liveness probe
+  liveness:
+    # -- Enable liveness probe
+    enabled: true
+    # -- Initial delay before probe starts
+    initialDelaySeconds: 30
+    # -- Probe interval
+    periodSeconds: 10
+    # -- Probe timeout
+    timeoutSeconds: 5
+    # -- Failure threshold
+    failureThreshold: 3
+    # -- Success threshold
+    successThreshold: 1
+  # Readiness probe
+  readiness:
+    # -- Enable readiness probe
+    enabled: true
+    # -- Initial delay before probe starts
+    initialDelaySeconds: 10
+    # -- Probe interval
+    periodSeconds: 10
+    # -- Probe timeout
+    timeoutSeconds: 5
+    # -- Failure threshold
+    failureThreshold: 3
+    # -- Success threshold
+    successThreshold: 1
+  # Startup probe
+  startup:
+    # -- Enable startup probe
+    enabled: true
+    # -- Initial delay before probe starts
+    initialDelaySeconds: 5
+    # -- Probe interval
+    periodSeconds: 5
+    # -- Probe timeout
+    timeoutSeconds: 5
+    # -- Failure threshold (allows up to 30*5=150s for startup)
+    failureThreshold: 30
+    # -- Success threshold
+    successThreshold: 1

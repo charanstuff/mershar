@@ -1,0 +1,3 @@
+# Kind test: kubeconfig (machine-specific) and downloaded kind binary
+kind-test/kubeconfig
+kind-test/kind

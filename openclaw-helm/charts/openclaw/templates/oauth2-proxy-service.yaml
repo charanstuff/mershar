@@ -1,0 +1,19 @@
+{{- if .Values.gatewayOauth2Nginx.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "openclaw.fullname" . }}-oauth2-proxy
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: oauth2-proxy
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4180
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "openclaw.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: oauth2-proxy
+{{- end }}

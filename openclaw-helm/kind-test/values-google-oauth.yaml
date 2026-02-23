@@ -1,0 +1,26 @@
+# OpenClaw with oauth2-proxy + nginx: only @gmail.com can log in.
+# Redirect URL for local Kind: http://localhost:4181/oauth2/callback
+# Set GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET (and optionally COOKIE_SECRET) before deploy.sh.
+# Set OPENAI_API_KEY (and OPENAI_PROJECT_ID for sk-proj- keys) for Chat; default model is OpenAI.
+
+openclaw:
+  agents:
+    defaults:
+      model: "openai/gpt-4o"
+
+gatewayOauth2Nginx:
+  enabled: true
+  oauth2Proxy:
+    provider: "google"
+    redirectUrl: "http://localhost:4181/oauth2/callback"
+    emailDomains: ["gmail.com"]
+    # allowedEmails: use only emailDomains (any @gmail.com). If you set both, oauth2-proxy v7 can exit with code 2.
+    allowedEmails: []
+    skipProviderButton: false
+    # clientId, clientSecret, cookieSecret set via --set in deploy.sh from env
+
+chromium:
+  visibleMode: true
+
+ingress:
+  enabled: false

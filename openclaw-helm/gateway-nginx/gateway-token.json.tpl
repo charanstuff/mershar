@@ -1,0 +1,1 @@
+{"token":"${OPENCLAW_GATEWAY_TOKEN}"}
