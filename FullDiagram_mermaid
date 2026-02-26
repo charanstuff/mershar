@@ -1,0 +1,98 @@
+flowchart TB
+  %% =========================
+  %% Edge + Control Plane
+  %% =========================
+  subgraph CP["Control Plane (No agent code runs here)"]
+    U["User / Client Apps"]
+    GW["Envoy API Gateway\n(TLS, AuthN/Z, Tenant ID routing)"]
+    ORCH["Tenant Orchestrator\n(Policy, Quotas, Decompose tasks)"]
+    SCH["Scheduler / Placement\n(Shard, Risk-class, Capacity)"]
+    CRD["K8s CRDs + Operator\nTenant / Swarm / Sandbox / ExecutorPool"]
+    KEDA["KEDA\n(Event-driven autoscaling to/from zero)"]
+    QUEUE["Queue / Task Bus\n(NATS / Kafka / Redis / Temporal)"]
+    BROKER["Tool Proxy + Secrets Broker\n(Short-lived scoped creds, Audit)"]
+    STATE["State Services\n(Postgres/Metadata, Object store, RWX FS)"]
+
+    U --> GW --> ORCH
+    ORCH --> SCH
+    ORCH --> QUEUE
+    ORCH --> BROKER
+    ORCH --> STATE
+
+    SCH --> CRD
+    CRD --> KEDA
+    KEDA --> CRD
+
+    BROKER --> STATE
+  end
+
+  %% =========================
+  %% Kubernetes + Compute Plane
+  %% =========================
+  subgraph K8S["Kubernetes Cluster"]
+    subgraph NODES["Worker Nodes (Compute Plane)"]
+      RUNTIME["RuntimeClass: Kata Containers\n(Firecracker-backed microVM pods)"]
+      
+      subgraph TENANTA["Tenant A Namespace"]
+        subgraph SA1["Sandbox A1 (microVM)"]
+          SUPA1["Init/Supervisor"]
+          EPA1["ExecutorPool: Email\n(Executors: E1..En)\nShard queues: A.email.1..k"]
+          NPA1["ExecutorPool: Notes\n(Executors: N1..Nn)\nShard queues: A.notes.1..k"]
+          SHAREA1["Shared Artifacts (controlled RW)\n/var/openclaw/shared-rw"]
+          WORKA1["Per-executor Workdirs\n/var/openclaw/work/<id>"]
+          ROA1["Shared Readonly Assets\n/var/openclaw/shared-ro"]
+          SUPA1 --> EPA1
+          SUPA1 --> NPA1
+          EPA1 --- WORKA1
+          NPA1 --- WORKA1
+          EPA1 --- SHAREA1
+          NPA1 --- SHAREA1
+          EPA1 --- ROA1
+          NPA1 --- ROA1
+        end
+
+        subgraph SA2["Sandbox A2 (microVM)\n(high-risk tools separated)"]
+          SUPA2["Init/Supervisor"]
+          EPA2["ExecutorPool: Browser/Shell\n(Executors)\nShard queues: A.risky.1..k"]
+          SUPA2 --> EPA2
+        end
+      end
+
+      subgraph TENANTB["Tenant B Namespace"]
+        subgraph SB1["Sandbox B1 (microVM)"]
+          SUPB1["Init/Supervisor"]
+          EPB1["ExecutorPool(s)\n(Executors)\nShard queues: B.*"]
+          SUPB1 --> EPB1
+        end
+      end
+    end
+  end
+
+  %% =========================
+  %% Cross-plane connections
+  %% =========================
+  SCH -->|creates/updates CRDs| CRD
+  CRD -->|desired state| K8S
+  KEDA -->|scale ExecutorPools| K8S
+
+  QUEUE -->|tasks pulled| EPA1
+  QUEUE -->|tasks pulled| NPA1
+  QUEUE -->|tasks pulled| EPA2
+  QUEUE -->|tasks pulled| EPB1
+
+  EPA1 -->|tool calls| BROKER
+  NPA1 -->|tool calls| BROKER
+  EPA2 -->|tool calls| BROKER
+  EPB1 -->|tool calls| BROKER
+
+  EPA1 -->|checkpoints/artifacts| STATE
+  NPA1 -->|checkpoints/artifacts| STATE
+  EPA2 -->|checkpoints/artifacts| STATE
+  EPB1 -->|checkpoints/artifacts| STATE
+
+  %% =========================
+  %% Lifecycle notes
+  %% =========================
+  NOTE1["Scale-to-zero:\nKEDA reduces ExecutorPools to 0 when queue empty.\nDurable state remains in STATE.\nOn new work, KEDA scales up and sandboxes restart (cold) or restore (warm if snapshots enabled)."]
+  NOTE1 -.-> KEDA
+  NOTE1 -.-> STATE

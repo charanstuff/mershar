@@ -137,7 +137,7 @@ Set the OpenAI API key and switch the default model:
 helm upgrade --install openclaw ./charts/openclaw \
   --set credentials.openaiApiKey="sk-..." \
   --set openclaw.agents.defaults.model="openai/gpt-4o" \
-  # ... other flags (e.g. -f values-google-oauth.yaml, OAuth --set, etc.)
+  # ... other flags (e.g. -f values-unsecure-google-auth.yaml, OAuth --set, etc.)
 ```
 
 With `kind-test/deploy.sh` and Google OAuth:

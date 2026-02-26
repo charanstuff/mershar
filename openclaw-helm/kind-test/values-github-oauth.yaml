@@ -1,0 +1,35 @@
+# OpenClaw with oauth2-proxy + nginx: sign in with GitHub.
+# Redirect URL for local Kind: http://localhost:4181/oauth2/callback
+# Create a GitHub OAuth App: https://github.com/settings/developers → New OAuth App
+#   Homepage URL: http://localhost:4181   (or your public URL)
+#   Authorization callback URL: http://localhost:4181/oauth2/callback
+# Set GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_CLIENT_SECRET (and optionally COOKIE_SECRET) before deploy.sh.
+# Set OPENAI_API_KEY (and OPENAI_PROJECT_ID for sk-proj- keys) for Chat; default model is OpenAI.
+
+openclaw:
+  agents:
+    defaults:
+      model: "openai/gpt-4o"
+
+gatewayOauth2Nginx:
+  enabled: true
+  oauth2Proxy:
+    provider: "github"
+    redirectUrl: "http://localhost:4181/oauth2/callback"
+    # Required for http://localhost: browser does not send Secure cookies over HTTP
+    cookieSecure: false
+    # Restrict to a GitHub org (optional). Example: ["my-org"]. Leave [] to allow any GitHub user.
+    allowedGroups: []
+    # Restrict by email domain. ["github.com"] = only @github.com emails (many users use @users.noreply.github.com and would be excluded). [] = allow any GitHub user.
+    # Allow @github.com emails. Your Yahoo primary (charansgit@yahoo.com) is allowed via allowedEmails below.
+    emailDomains: ["github.com"]
+    # Only these emails can sign in. Add more addresses as needed. [] = any GitHub user (less secure).
+    allowedEmails: ["charansgit@yahoo.com"]
+    skipProviderButton: false
+    # clientId, clientSecret, cookieSecret set via --set in deploy.sh from env
+
+chromium:
+  visibleMode: true
+
+ingress:
+  enabled: false

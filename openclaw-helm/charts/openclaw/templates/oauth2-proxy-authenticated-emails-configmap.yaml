@@ -1,0 +1,14 @@
+{{- if and .Values.gatewayOauth2Nginx.enabled ( .Values.gatewayOauth2Nginx.oauth2Proxy.allowedEmails ) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openclaw.fullname" . }}-oauth2-proxy-authenticated-emails
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: oauth2-proxy
+data:
+  authenticated-emails: |
+    {{- range .Values.gatewayOauth2Nginx.oauth2Proxy.allowedEmails }}
+    {{ . }}
+    {{- end }}
+{{- end }}

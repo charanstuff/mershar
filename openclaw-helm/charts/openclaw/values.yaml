@@ -177,6 +177,8 @@ gatewayOauth2Nginx:
     clientSecret: ""
     # -- Cookie secret (generate: python3 -c "import os,base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode())")
     cookieSecret: ""
+    # -- Set Secure flag on cookie (true for HTTPS; set false for http://localhost in Kind)
+    cookieSecure: true
     # -- Secret with keys: client-secret, cookie-secret (overrides clientSecret/cookieSecret)
     existingSecret: ""
     # -- Redirect URL as registered with IdP (e.g. https://openclaw.example.com/oauth2/callback)

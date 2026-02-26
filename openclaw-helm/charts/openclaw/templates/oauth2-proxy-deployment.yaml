@@ -32,6 +32,7 @@ spec:
             {{- end }}
             - --client-id={{ .Values.gatewayOauth2Nginx.oauth2Proxy.clientId }}
             - --cookie-expire={{ .Values.gatewayOauth2Nginx.oauth2Proxy.cookieExpire | default "168h" }}
+            - --cookie-secure={{ .Values.gatewayOauth2Nginx.oauth2Proxy.cookieSecure | default true }}
             {{- if and ( .Values.gatewayOauth2Nginx.oauth2Proxy.cookieRefresh ) ( ne (toString .Values.gatewayOauth2Nginx.oauth2Proxy.cookieRefresh) "0" ) }}
             - --cookie-refresh={{ .Values.gatewayOauth2Nginx.oauth2Proxy.cookieRefresh }}
             {{- end }}
@@ -41,6 +42,9 @@ spec:
             {{- end }}
             {{- range .Values.gatewayOauth2Nginx.oauth2Proxy.allowedGroups }}
             - --allowed-group={{ . }}
+            {{- end }}
+            {{- if .Values.gatewayOauth2Nginx.oauth2Proxy.allowedEmails }}
+            - --authenticated-emails-file=/etc/oauth2-proxy/authenticated-emails
             {{- end }}
             {{- if .Values.gatewayOauth2Nginx.oauth2Proxy.skipProviderButton }}
             - --skip-provider-button
@@ -71,6 +75,18 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if .Values.gatewayOauth2Nginx.oauth2Proxy.allowedEmails }}
+          volumeMounts:
+            - name: authenticated-emails
+              mountPath: /etc/oauth2-proxy
+              readOnly: true
+          {{- end }}
+      {{- if .Values.gatewayOauth2Nginx.oauth2Proxy.allowedEmails }}
+      volumes:
+        - name: authenticated-emails
+          configMap:
+            name: {{ include "openclaw.fullname" . }}-oauth2-proxy-authenticated-emails
+      {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

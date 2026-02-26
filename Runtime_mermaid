@@ -1,0 +1,13 @@
+flowchart LR
+  U[User Request] --> GW[Envoy]
+  GW --> ORCH[Orchestrator]
+  ORCH --> SCH[Scheduler]
+  ORCH --> QUEUE[Task Queue]
+
+  QUEUE --> EX[Executors in Tenant Sandboxes]
+
+  EX --> BROKER[Tool / Secrets Broker]
+  EX --> STATE[Durable State]
+
+  KEDA[KEDA] --> EX
+  CRD[CRDs + Operator] --> EX

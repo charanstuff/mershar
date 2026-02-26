@@ -1,0 +1,56 @@
+flowchart LR
+
+  %% ===== Edge / Control =====
+  U[User]
+  GW[Envoy Gateway]
+  ORCH[Orchestrator]
+  SCH[Scheduler]
+  QUEUE[Task Queue]
+  BROKER[Tool / Secrets Broker]
+  STATE[Durable State]
+  KEDA[KEDA]
+  CRD[CRDs + Operator]
+
+  U --> GW --> ORCH
+  ORCH --> SCH
+  ORCH --> QUEUE
+  SCH --> CRD
+  KEDA --> CRD
+
+  %% ===== Compute =====
+  subgraph K8S[Kubernetes Cluster]
+    subgraph TA[Tenant A Namespace]
+      subgraph SA1[Sandbox A1 microVM]
+        EA[Email Executors]
+        NA[Notes Executors]
+      end
+      subgraph SA2[Sandbox A2 microVM]
+        RA[High-Risk Executors]
+      end
+    end
+
+    subgraph TB[Tenant B Namespace]
+      subgraph SB1[Sandbox B1 microVM]
+        EB[Executors]
+      end
+    end
+  end
+
+  CRD --> K8S
+
+  %% ===== Work distribution =====
+  QUEUE --> EA
+  QUEUE --> NA
+  QUEUE --> RA
+  QUEUE --> EB
+
+  %% ===== Shared external services =====
+  EA --> BROKER
+  NA --> BROKER
+  RA --> BROKER
+  EB --> BROKER
+
+  EA --> STATE
+  NA --> STATE
+  RA --> STATE
+  EB --> STATE

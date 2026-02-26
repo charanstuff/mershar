@@ -91,7 +91,7 @@ http {
       proxy_read_timeout 86400;
     }
 
-    # OAuth2 auth subrequest
+    # OAuth2 auth subrequest (must forward client Cookie so oauth2-proxy can validate session)
     location = /oauth2/auth {
       internal;
       proxy_pass http://oauth2_proxy_backend/oauth2/auth;
@@ -100,6 +100,7 @@ http {
       proxy_set_header X-Real-IP $remote_addr;
       proxy_set_header X-Scheme $scheme;
       proxy_set_header X-Original-URI $request_uri;
+      proxy_set_header Cookie $http_cookie;
       proxy_set_header Content-Length "";
       proxy_pass_request_body off;
     }

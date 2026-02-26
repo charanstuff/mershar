@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Approve a pending device pairing request (fixes "pairing required" 1008).
-# Get the Request ID from ./kind-test/listPendingRequests.sh (first column under "Pending").
+# Approve a pending device pairing request (fixes "pairing required" or helps Control UI connect).
+# With no args: approves the latest pending request (e.g. Control UI). With an arg: approves that request ID.
 #
 # Usage: ./kind-test/approveRequest.sh [request-id]
-#   If request-id is omitted, approves the latest pending request (if the CLI supports it).
+#   Omit request-id to approve the latest pending request (run listPendingRequests.sh to see IDs).
 
 set -euo pipefail
 
@@ -26,10 +26,8 @@ if [[ -z "$POD" ]]; then
 fi
 
 REQUEST_ID="${1:-}"
-if [[ -z "$REQUEST_ID" ]]; then
-  echo "Usage: $0 <request-id>" >&2
-  echo "Get request IDs with: ./kind-test/listPendingRequests.sh" >&2
-  exit 1
+if [[ -n "$REQUEST_ID" ]]; then
+  kubectl exec -n "$NAMESPACE" "$POD" -c openclaw -- node dist/index.js devices approve "$REQUEST_ID"
+else
+  kubectl exec -n "$NAMESPACE" "$POD" -c openclaw -- node dist/index.js devices approve --latest
 fi
-
-kubectl exec -n "$NAMESPACE" "$POD" -c openclaw -- node dist/index.js devices approve "$REQUEST_ID"

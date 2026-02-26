@@ -1,4 +1,5 @@
 # OpenClaw with oauth2-proxy + nginx: only @gmail.com can log in.
+# UNSECURE: cookieSecure false for http://localhost (Kind). Do not use over real networks.
 # Redirect URL for local Kind: http://localhost:4181/oauth2/callback
 # Set GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET (and optionally COOKIE_SECRET) before deploy.sh.
 # Set OPENAI_API_KEY (and OPENAI_PROJECT_ID for sk-proj- keys) for Chat; default model is OpenAI.
