@@ -31,7 +31,8 @@ data:
     {{- $_ := set $gateway "trustedProxies" .Values.gatewayOauth2Nginx.trustedProxiesCidrs }}
     {{- end }}
     {{- if .Values.gatewayOauth2Nginx.enabled }}
-    {{- $_ := set $gateway "controlUi" (dict "allowInsecureAuth" true) }}
+    {{- $controlUi := dict "allowInsecureAuth" true "allowedOrigins" (list "http://localhost:4181" "http://127.0.0.1:4181") }}
+    {{- $_ := set $gateway "controlUi" $controlUi }}
     {{- end }}
     {{- $_ := set $config "gateway" $gateway }}
     {{- /* Merge any user-provided overrides */ -}}

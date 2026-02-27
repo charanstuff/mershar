@@ -242,6 +242,9 @@ podSecurityContext:
   seccompProfile:
     type: RuntimeDefault
 
+# -- RuntimeClass for the pod (e.g. kata-fc for Firecracker-backed sandboxes). Leave empty for the cluster default.
+runtimeClassName: ""
+
 # Security context for the main OpenClaw container
 securityContext:
   runAsUser: 1000
