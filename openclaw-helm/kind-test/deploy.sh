@@ -184,17 +184,17 @@ if [[ "$USE_GOOGLE_OAUTH" == true ]] || [[ "$USE_GITHUB_OAUTH" == true ]]; then
     fi
   fi
   echo "==> Installing OpenClaw from $CHART_PATH (with $(basename "$VALUES_FILE"))"
-  HELM_SET_OPENAI=""
-  [[ -n "$OPENAI_KEY" ]] && HELM_SET_OPENAI="$HELM_SET_OPENAI --set credentials.openaiApiKey=$OPENAI_KEY"
-  [[ -n "$OPENAI_PROJECT_ID" ]] && HELM_SET_OPENAI="$HELM_SET_OPENAI --set credentials.openaiProjectId=$OPENAI_PROJECT_ID"
-  [[ -n "$OPENAI_ORG_ID" ]] && HELM_SET_OPENAI="$HELM_SET_OPENAI --set credentials.openaiOrgId=$OPENAI_ORG_ID"
+  HELM_EXTRA=()
+  [[ -n "$HELM_SET_IMAGE" ]] && HELM_EXTRA+=(--set "image.repository=openclaw" --set "image.tag=kind-test" --set "image.pullPolicy=IfNotPresent")
+  [[ -n "$SECURE_COOKIE_PARAM" ]] && HELM_EXTRA+=(--set "gatewayOauth2Nginx.oauth2Proxy.cookieSecure=$SECURE_COOKIE_PARAM")
+  [[ -n "$OPENAI_KEY" ]] && HELM_EXTRA+=(--set "credentials.openaiApiKey=$OPENAI_KEY")
+  [[ -n "$OPENAI_PROJECT_ID" ]] && HELM_EXTRA+=(--set "credentials.openaiProjectId=$OPENAI_PROJECT_ID")
+  [[ -n "$OPENAI_ORG_ID" ]] && HELM_EXTRA+=(--set "credentials.openaiOrgId=$OPENAI_ORG_ID")
   helm upgrade --install openclaw "$CHART_PATH" \
     --namespace "$NAMESPACE" \
     -f "$VALUES_FILE" \
-    $HELM_SET_IMAGE \
-    $HELM_SET_COOKIE_SECURE \
+    "${HELM_EXTRA[@]}" \
     --set "credentials.anthropicApiKey=$ANTHROPIC_KEY" \
-    $HELM_SET_OPENAI \
     --set "gatewayOauth2Nginx.oauth2Proxy.clientId=$OAUTH_CLIENT_ID" \
     --set "gatewayOauth2Nginx.oauth2Proxy.clientSecret=$OAUTH_CLIENT_SECRET" \
     --set "gatewayOauth2Nginx.oauth2Proxy.cookieSecret=$COOKIE_SECRET" \
@@ -206,15 +206,15 @@ if [[ "$USE_GOOGLE_OAUTH" == true ]] || [[ "$USE_GITHUB_OAUTH" == true ]]; then
   kubectl rollout status deployment/openclaw-gateway-nginx -n "$NAMESPACE" --timeout=120s 2>/dev/null || true
 else
   echo "==> Installing OpenClaw from $CHART_PATH"
-  HELM_SET_OPENAI=""
-  [[ -n "$OPENAI_KEY" ]] && HELM_SET_OPENAI="$HELM_SET_OPENAI --set credentials.openaiApiKey=$OPENAI_KEY"
-  [[ -n "$OPENAI_PROJECT_ID" ]] && HELM_SET_OPENAI="$HELM_SET_OPENAI --set credentials.openaiProjectId=$OPENAI_PROJECT_ID"
-  [[ -n "$OPENAI_ORG_ID" ]] && HELM_SET_OPENAI="$HELM_SET_OPENAI --set credentials.openaiOrgId=$OPENAI_ORG_ID"
+  HELM_EXTRA=()
+  [[ -n "$HELM_SET_IMAGE" ]] && HELM_EXTRA+=(--set "image.repository=openclaw" --set "image.tag=kind-test" --set "image.pullPolicy=IfNotPresent")
+  [[ -n "$OPENAI_KEY" ]] && HELM_EXTRA+=(--set "credentials.openaiApiKey=$OPENAI_KEY")
+  [[ -n "$OPENAI_PROJECT_ID" ]] && HELM_EXTRA+=(--set "credentials.openaiProjectId=$OPENAI_PROJECT_ID")
+  [[ -n "$OPENAI_ORG_ID" ]] && HELM_EXTRA+=(--set "credentials.openaiOrgId=$OPENAI_ORG_ID")
   helm upgrade --install openclaw "$CHART_PATH" \
     --namespace "$NAMESPACE" \
-    $HELM_SET_IMAGE \
+    "${HELM_EXTRA[@]}" \
     --set "credentials.anthropicApiKey=$ANTHROPIC_KEY" \
-    $HELM_SET_OPENAI \
     --wait \
     --timeout 5m
 fi

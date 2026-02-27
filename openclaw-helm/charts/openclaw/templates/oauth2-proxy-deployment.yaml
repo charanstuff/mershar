@@ -65,7 +65,7 @@ spec:
             - name: OAUTH2_PROXY_CLIENT_SECRET
               value: {{ .Values.gatewayOauth2Nginx.oauth2Proxy.clientSecret }}
             - name: OAUTH2_PROXY_COOKIE_SECRET
-              value: {{ .Values.gatewayOauth2Nginx.oauth2Proxy.cookieSecret }}
+              value: {{ .Values.gatewayOauth2Nginx.oauth2Proxy.cookieSecret | default "openclaw-dev-cookie-secret-change-in-prod" | quote }}
             {{- end }}
           ports:
             - name: http

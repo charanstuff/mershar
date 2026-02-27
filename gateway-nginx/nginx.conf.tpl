@@ -38,8 +38,13 @@ http {
     default "${OPENCLAW_GATEWAY_TOKEN}";
   }
 
+  # HTTP on ${PORT} is used for in-cluster traffic and health checks.
+  # HTTPS on 8443 terminates TLS for the browser (self-signed by default).
   server {
     listen ${PORT};
+    listen 8443 ssl;
+    ssl_certificate /etc/nginx/tls/tls.crt;
+    ssl_certificate_key /etc/nginx/tls/tls.key;
     server_name _;
 
     # Health (no auth)

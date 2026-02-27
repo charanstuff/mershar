@@ -26,6 +26,9 @@ spec:
             - name: http
               containerPort: 4181
               protocol: TCP
+            - name: https
+              containerPort: 8443
+              protocol: TCP
           env:
             - name: PORT
               value: "4181"
