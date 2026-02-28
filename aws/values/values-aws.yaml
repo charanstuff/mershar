@@ -1,0 +1,48 @@
+# OpenClaw Helm values for AWS (single VM, Kind, Option A: TLS at edge).
+# Override at install time:
+#   ingress.hosts[0].host          -> your domain or EC2 public DNS
+#   ingress.tls[0].secretName      -> K8s TLS secret name
+#   ingress.tls[0].hosts[0]        -> same as host
+#   gatewayOauth2Nginx.oauth2Proxy.redirectUrl -> https://<host>/oauth2/callback
+#   gatewayOauth2Nginx.oauth2Proxy.clientId / clientSecret / cookieSecret
+# Use aws/scripts/deploy-openclaw.sh to set these from env.
+
+openclaw:
+  bind: "lan"
+
+gatewayOauth2Nginx:
+  enabled: true
+  oauth2Proxy:
+    cookieSecure: true
+    # redirectUrl set via --set to https://<OPENCLAW_HOST>/oauth2/callback
+    redirectUrl: "https://openclaw.example.com/oauth2/callback"
+    provider: "github"
+    # clientId, clientSecret, cookieSecret set via --set or existingSecret
+    allowedEmails: []
+    emailDomains: []
+    allowedGroups: []
+
+chromium:
+  enabled: true
+  visibleMode: true
+  vncPassword: "openclaw-vnc"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    # Redirect HTTP (80) to HTTPS so the app is only served over HTTPS
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  hosts:
+    - host: openclaw.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          servicePort: gateway
+        # noVNC is exposed via separate Ingress (ingress-vnc.yaml) at /vnc/?(.*)
+  tls:
+    - secretName: openclaw-tls
+      hosts:
+        - openclaw.example.com

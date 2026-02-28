@@ -19,5 +19,11 @@ spec:
       targetPort: canvas
       protocol: TCP
       name: canvas
+    {{- if and .Values.chromium.enabled .Values.chromium.visibleMode }}
+    - port: 8080
+      targetPort: novnc
+      protocol: TCP
+      name: vnc
+    {{- end }}
   selector:
     {{- include "openclaw.selectorLabels" . | nindent 4 }}

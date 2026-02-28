@@ -1,12 +1,19 @@
-{{- if .Values.ingress.enabled }}
+{{- if and .Values.ingress.enabled .Values.chromium.enabled .Values.chromium.visibleMode }}
+# Separate Ingress for noVNC so we can apply path rewrite (strip /vnc prefix).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "openclaw.fullname" . }}
+  name: {{ include "openclaw.fullname" . }}-vnc
   labels:
     {{- include "openclaw.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
   annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Strip /vnc prefix: /vnc and /vnc/vnc.html -> / and /vnc.html
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
@@ -28,28 +35,12 @@ spec:
     - host: {{ .host | quote }}
       http:
         paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            pathType: {{ .pathType }}
+          - path: /vnc/?(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
-                {{- if eq .servicePort "vnc" }}
                 name: {{ include "openclaw.fullname" $ }}
                 port:
                   name: vnc
-                {{- else if $.Values.gatewayOauth2Nginx.enabled }}
-                name: {{ include "openclaw.fullname" $ }}-gateway-nginx
-                port:
-                  name: http
-                {{- else }}
-                name: {{ include "openclaw.fullname" $ }}
-                port:
-                  {{- if eq .servicePort "canvas" }}
-                  name: canvas
-                  {{- else }}
-                  name: gateway
-                  {{- end }}
-                {{- end }}
-          {{- end }}
     {{- end }}
 {{- end }}
